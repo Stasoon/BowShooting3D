@@ -5,11 +5,14 @@ using UnityEngine;
 
 public class Bow : MonoBehaviour
 {
+    public static Vector3 w;
+
     private KeyCode aimButton = KeyCode.Mouse1;
 
     [Header("Параметры лука")]
     [SerializeField] private float _tension = 0;
     public readonly float maxTension = 0.4f;
+
     public event Action<float> OnTensionChanged;
     public float Tension {
         get {return _tension;}
@@ -22,7 +25,7 @@ public class Bow : MonoBehaviour
     
     [Header("Стрела")]
     [SerializeField] GameObject arrowPrefab; 
-    [SerializeField] float arrowSpeed = 40f;
+    
     BowArrow arrow;
     Transform arrowTransform;
 
@@ -31,12 +34,10 @@ public class Bow : MonoBehaviour
     [SerializeField] AnimationCurve reloadAnim;  
 
     [Header("Звуки")]
-    //[SerializeField] AudioClip tensionAudioClip;
     [SerializeField] AudioClip whistlingAudioClip;
     AudioSource bowAudioSource;
 
     float aimSpeed = 1f;
-
     bool isAiming = false;
 
     private void Start() {
@@ -57,7 +58,21 @@ public class Bow : MonoBehaviour
             bowAudioSource.pitch = UnityEngine.Random.Range(0.8f, 1.2f);
             bowAudioSource.PlayOneShot(whistlingAudioClip);
 
-            arrow.Shoot(Tension*arrowSpeed);
+            ////////////
+            float arrowSpeedMultiplier = 30f;
+            float tensionMultiplier = 3f;
+
+            float tensionRatio = Tension / maxTension;
+            float arrowVelocity = arrowSpeedMultiplier * tensionMultiplier * tensionRatio;
+            Debug.Log(arrowVelocity);
+
+            //float t = tensionRatio * tensionMultiplier;
+            //float bowEnergy = 0.5f * t * t; // Энергия растяжения лука
+            //float arrowVelocity = Mathf.Sqrt(2 * bowEnergy / arrow.mass); // Начальная скорость стрелы
+            //arrowVelocity *= arrowSpeedMultiplier;
+
+            Debug.Log(arrowVelocity);
+            arrow.Shoot(arrowVelocity);
 
             isAiming = false;
             Tension = 0;

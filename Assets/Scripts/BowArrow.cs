@@ -1,70 +1,77 @@
-using System.Collections;
 using UnityEngine;
 
 public class BowArrow : MonoBehaviour
 {
-    [SerializeField] float mass = 4f;
-    const float G = 9.81f;
-
-    float timeToLive = 50f;
-
-    bool isStopped = false;
-
     [SerializeField] TrailRenderer trailRenderer;
     [SerializeField] AudioClip hitSound;
 
-    Transform _arrowBody;
+    float Vyct;  // Установившаяся скорость
+    Vector3 V;  // Вектор скорости
+    Preferences pref;
+
+    bool isLaunched = false;  // Выпущена ли стрела
+    bool isStopped = false;  // Остановлена ли стрела
+
+    float timeToLive = 10;
+    float lifeTime = 0;
 
     void Start() {
-        if (trailRenderer == null) {
-            TryGetComponent<TrailRenderer>(out trailRenderer);
-        }
         trailRenderer.enabled = false;
 
-        _arrowBody = transform.GetChild(0).GetComponent<Transform>();
+        pref = Camera.main.GetComponent<Preferences>();
+        Vyct = pref.ArrowSteadyStateSpeed;
     }
 
-    public void Shoot(float velocity) {
-        trailRenderer.enabled = true;
-        Vector3 startPos = transform.position;
-        StartCoroutine(SimulateArrowMotion(velocity, startPos));
+    public void Shoot(float V0) {
+        transform.parent = null;  // Отделяем стрелу от лука в иерархии
+
+        isLaunched = true;
+        trailRenderer.enabled = true;  // Включаем отрисовку пути
+
+        V = transform.forward * V0;
     }
 
     void OnCollisionEnter(Collision collision)
     {
-        if (collision.gameObject.tag == "Ground") {
+        if (isLaunched && collision.gameObject.tag == "Ground") {
             isStopped = true;
 
+            // Проигрываем звук столкновения
             AudioSource audioSource = GetComponent<AudioSource>();
             audioSource.pitch = Random.Range(0.95f, 1.1f);
             audioSource.PlayOneShot(hitSound);
         }
     }
 
-    IEnumerator SimulateArrowMotion(float velocity, Vector3 initialPosition)
-    {
-        transform.parent = null;
-        float time = 0f;
 
-        float y0 = initialPosition.y; // Начальная высота стрелы
-        float v0y = transform.forward.y * velocity;
-
-        while (time < timeToLive && isStopped == false)
-        {
-            float x = initialPosition.x + transform.forward.x * velocity * time;
-            float y = y0 + v0y * time - 0.5f * G * time * time;
-            float z = initialPosition.z + transform.forward.z * velocity * time;
-
-            transform.localPosition = new Vector3(x, y, z);
-            //_arrowBody.rotation = Quaternion.Euler(new Vector3(0, y, 0));
-
-            // Увеличиваем время
-            time += Time.deltaTime;
-
-            yield return null;
+    void Update() {
+        if (isLaunched && !isStopped) {
+            MoveArrow();
         }
+    }
 
-        if (!isStopped)
+    void MoveArrow() {
+        // Ускорение стрелы
+        Vector3 U = V - pref.windForce;
+        Vector3 a = pref.g + (-pref.G * U.magnitude * U) / (Vyct*Vyct);
+
+        // Изменение скорости стрелы
+        V += a * Time.deltaTime;
+ 
+        // Изменение позиции стрелы
+        transform.position += V * Time.deltaTime;
+
+        // Направление стрелы по вектору скорости
+        transform.rotation = Quaternion.LookRotation(V);
+
+        // Визуализация сил
+        Debug.DrawRay(transform.position, pref.windForce, Color.blue);
+        Debug.DrawRay(transform.position, V, Color.red);
+
+        // Уничтожение стрелы
+        if (lifeTime > timeToLive)
             Destroy(gameObject);
+        else 
+            lifeTime += Time.deltaTime;
     }
 }
